@@ -6,7 +6,7 @@ The project is developed collaboratively using one shared GitHub repository with
 
 ## Team Responsibilities
 
-### Team 1 – Care Systems
+### Team 1 – Care Systems - MOUNI SRI NALLAPANENI
 
 Team 1 is responsible for the core care-system behavior, including:
 
@@ -22,7 +22,7 @@ Branch:
 
 `team-1/care-systems`
 
-### Team 2 – Pet Personality
+### Team 2 – Pet Personality - AKSHITHA SAINATH SANAGARAPU
 
 Team 2 is responsible for the pet's visual personality, interaction feedback, accessibility, and derived presentation behavior.
 
