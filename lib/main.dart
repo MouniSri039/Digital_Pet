@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'pet_game.dart';
 import 'pet_personality.dart';
 
 void main() {
@@ -33,14 +34,14 @@ class DigitalPetHome extends StatefulWidget {
 }
 
 class _DigitalPetHomeState extends State<DigitalPetHome> {
-  // -----------------------------
-  // Team 1: Care Mechanics & State
-  // -----------------------------
-
   String _petName = 'My Pet';
 
-  int _happiness = 50;
-  int _hunger = 50;
+  // Graduate architecture:
+  // PetGame owns mutable game meters and game-rule transitions.
+  // This widget owns rendering, timers, controllers, and visual feedback.
+  final PetGame _petGame = PetGame();
+
+  String _selectedActivity = 'None';
 
   bool _gameOver = false;
   bool _hasWon = false;
@@ -50,37 +51,42 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
 
   final TextEditingController _nameController = TextEditingController();
 
-  // -----------------------------
   // Team 2: Personality & Feedback
-  // -----------------------------
-
   double _actionScale = 1.0;
   String? _reaction;
 
   Timer? _reactionTimer;
   Timer? _bounceTimer;
 
-  int _clampMeter(int value) {
-    return value.clamp(0, 100).toInt();
-  }
-
   String get _moodLabel {
-    return PetPersonality.moodLabel(_happiness);
+    return PetPersonality.moodLabel(_petGame.happiness);
   }
 
   Color get _moodColor {
-    return PetPersonality.moodColor(_happiness);
+    return PetPersonality.moodColor(_petGame.happiness);
   }
 
   double get _moodScale {
-    return PetPersonality.moodScale(_happiness);
+    return PetPersonality.moodScale(_petGame.happiness);
   }
 
   String get _petMessage {
+    if (_gameOver) {
+      return 'I need a rest.';
+    }
+
+    if (_hasWon) {
+      return 'Best day ever!';
+    }
+
+    if (_petGame.energy < 20) {
+      return 'So sleepy...';
+    }
+
     return PetPersonality.message(
       petName: _petName,
-      happiness: _happiness,
-      hunger: _hunger,
+      happiness: _petGame.happiness,
+      hunger: _petGame.hunger,
       gameOver: _gameOver,
       hasWon: _hasWon,
     );
@@ -125,13 +131,8 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
   void _feedPet() {
     if (_gameOver || _hasWon) return;
 
-    final nextHunger = _clampMeter(_hunger - 10);
-    final happinessChange = nextHunger < 30 ? -20 : 10;
-    final nextHappiness = _clampMeter(_happiness + happinessChange);
-
     setState(() {
-      _hunger = nextHunger;
-      _happiness = nextHappiness;
+      _petGame.feed();
     });
 
     _showReaction('🍖');
@@ -145,12 +146,8 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
   void _playWithPet() {
     if (_gameOver || _hasWon) return;
 
-    final nextHappiness = _clampMeter(_happiness + 15);
-    final nextHunger = _clampMeter(_hunger + 5);
-
     setState(() {
-      _happiness = nextHappiness;
-      _hunger = nextHunger;
+      _petGame.play();
     });
 
     _showReaction('🎾');
@@ -159,6 +156,49 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
     _updateOutcome();
 
     _showMessage('You played with $_petName!');
+  }
+
+  void _runActivity(String activity) {
+    if (_gameOver || _hasWon) return;
+
+    if (activity == 'Run') {
+      if (!_petGame.canRun) {
+        _showMessage('Not enough energy to run.');
+        return;
+      }
+
+      setState(() {
+        _selectedActivity = activity;
+        _petGame.run();
+      });
+
+      _showReaction('🏃');
+      _bouncePet();
+    } else if (activity == 'Walk') {
+      if (!_petGame.canWalk) {
+        _showMessage('Not enough energy to walk.');
+        return;
+      }
+
+      setState(() {
+        _selectedActivity = activity;
+        _petGame.walk();
+      });
+
+      _showReaction('🚶');
+      _bouncePet();
+    } else if (activity == 'Sleep') {
+      setState(() {
+        _selectedActivity = activity;
+        _petGame.sleep();
+      });
+
+      _showReaction('💤');
+    }
+
+    _updateOutcome();
+
+    _showMessage('$activity selected!');
   }
 
   void _resetPet() {
@@ -172,12 +212,17 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
 
     setState(() {
       _petName = 'My Pet';
-      _happiness = 50;
-      _hunger = 50;
+
+      _petGame.reset();
+
+      _selectedActivity = 'None';
+
       _gameOver = false;
       _hasWon = false;
+
       _reaction = null;
       _actionScale = 1.0;
+
       _nameController.clear();
     });
 
@@ -206,9 +251,7 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
   void _updateOutcome() {
     if (_gameOver || _hasWon) return;
 
-    // Loss condition:
-    // hunger == 100 AND happiness <= 10
-    if (_hunger == 100 && _happiness <= 10) {
+    if (_petGame.isLoss) {
       _highMoodTimer?.cancel();
       _highMoodTimer = null;
 
@@ -223,19 +266,16 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
       return;
     }
 
-    // Happiness must be strictly greater than 80.
-    // Exactly 80 does NOT qualify.
-    if (_happiness <= 80) {
+    if (!_petGame.isHappyEnough) {
       _highMoodTimer?.cancel();
       _highMoodTimer = null;
       return;
     }
 
-    // Start the three-minute win timer only once.
     _highMoodTimer ??= Timer(const Duration(minutes: 3), () {
       _highMoodTimer = null;
 
-      if (!mounted || _gameOver || _happiness <= 80) {
+      if (!mounted || _gameOver || !_petGame.isHappyEnough) {
         return;
       }
 
@@ -251,7 +291,6 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
   }
 
   void _startHungerTimer() {
-    // Make sure exactly one hunger timer exists.
     _hungerTimer?.cancel();
 
     _hungerTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
@@ -261,12 +300,7 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
       }
 
       setState(() {
-        if (_hunger + 5 > 100) {
-          _hunger = 100;
-          _happiness = _clampMeter(_happiness - 20);
-        } else {
-          _hunger += 5;
-        }
+        _petGame.hungerTick();
       });
 
       _updateOutcome();
@@ -291,9 +325,12 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
   void dispose() {
     _hungerTimer?.cancel();
     _highMoodTimer?.cancel();
+
     _reactionTimer?.cancel();
     _bounceTimer?.cancel();
+
     _nameController.dispose();
+
     super.dispose();
   }
 
@@ -303,6 +340,16 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
     required IconData icon,
     required bool reduceMotion,
   }) {
+    Color meterColor;
+
+    if (label == 'Happiness') {
+      meterColor = _moodColor;
+    } else if (label == 'Energy') {
+      meterColor = Colors.blue;
+    } else {
+      meterColor = Colors.orange;
+    }
+
     return Semantics(
       label: '$label $value out of 100',
       child: Column(
@@ -330,7 +377,7 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
                 value: animatedValue,
                 minHeight: 10,
                 borderRadius: BorderRadius.circular(10),
-                color: label == 'Happiness' ? _moodColor : Colors.orange,
+                color: meterColor,
               );
             },
           ),
@@ -342,6 +389,7 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
   @override
   Widget build(BuildContext context) {
     final careDisabled = _gameOver || _hasWon;
+
     final bool reduceMotion = MediaQuery.of(context).disableAnimations;
 
     final double finalPetScale = reduceMotion
@@ -360,6 +408,7 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
                 style: Theme.of(context).textTheme.headlineMedium
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
+
               const SizedBox(height: 8),
 
               AnimatedSwitcher(
@@ -468,7 +517,7 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
 
               _buildMeter(
                 label: 'Happiness',
-                value: _happiness,
+                value: _petGame.happiness,
                 icon: Icons.favorite,
                 reduceMotion: reduceMotion,
               ),
@@ -477,8 +526,17 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
 
               _buildMeter(
                 label: 'Hunger',
-                value: _hunger,
+                value: _petGame.hunger,
                 icon: Icons.restaurant,
+                reduceMotion: reduceMotion,
+              ),
+
+              const SizedBox(height: 24),
+
+              _buildMeter(
+                label: 'Energy',
+                value: _petGame.energy,
+                icon: Icons.bolt,
                 reduceMotion: reduceMotion,
               ),
 
@@ -525,7 +583,51 @@ class _DigitalPetHomeState extends State<DigitalPetHome> {
                 ],
               ),
 
+              const SizedBox(height: 24),
+
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Choose an Activity',
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              DropdownButtonFormField<String>(
+                initialValue: _selectedActivity == 'None'
+                    ? null
+                    : _selectedActivity,
+                decoration: const InputDecoration(
+                  labelText: 'Activity',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.directions_run),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'Run', child: Text('🏃 Run')),
+                  DropdownMenuItem(value: 'Walk', child: Text('🚶 Walk')),
+                  DropdownMenuItem(value: 'Sleep', child: Text('😴 Sleep')),
+                ],
+                onChanged: careDisabled
+                    ? null
+                    : (activity) {
+                        if (activity != null) {
+                          _runActivity(activity);
+                        }
+                      },
+              ),
+
               const SizedBox(height: 12),
+
+              if (_selectedActivity != 'None')
+                Text(
+                  'Current Activity: $_selectedActivity',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+
+              const SizedBox(height: 20),
 
               SizedBox(
                 width: double.infinity,
