@@ -445,7 +445,7 @@ The integrated application was manually tested for its primary user flows.
 | Graduate Architecture | `PetGame` separated from widget rendering |
 | Graduate Testing | Model and widget automated tests |
 | Design Justification | Architecture decision and trade-off documented above |
-| Graduate PR Reviews | Akshitha reviewed PR #4; Mouni reviewed the final documentation/screenshots PR |
+| Graduate PR Reviews | Akshitha reviewed and approved PR #4; Mouni reviewed and approved PR #5 |
 
 ---
 
@@ -477,9 +477,23 @@ https://github.com/MouniSri039/Digital_Pet/pull/3
 
 ### PR #4 – Graduate Architecture, Energy System, and Activity Selection
 
+**Contributor:** Mouni Sri Nallapaneni
+
 Graduate architecture separation plus the Energy System, Run/Walk/Sleep activity selection, and additional automated tests.
 
+This pull request was reviewed and approved by Akshitha Sainath Sanagarapu.
+
 https://github.com/MouniSri039/Digital_Pet/pull/4
+
+### PR #5 – Finalize README and Rubric Evidence
+
+**Contributor:** Akshitha Sainath Sanagarapu
+
+Final project documentation including team responsibilities, graduate pathway evidence, architecture and design trade-off documentation, feature-to-outcome rubric mapping, testing evidence, and final application screenshots.
+
+This pull request was reviewed and approved by Mouni Sri Nallapaneni.
+
+https://github.com/MouniSri039/Digital_Pet/pull/5
 
 ---
 
@@ -508,7 +522,7 @@ https://github.com/MouniSri039/Digital_Pet/pull/4
 
 ### Mouni Sri Nallapaneni
 
-**Mouni Sri Nallapaneni** reviewed and approved Akshitha Sainath Sanagarapu's final documentation and screenshot pull request before it was merged into `main`.
+**Mouni Sri Nallapaneni (`MouniSri039`)** reviewed and approved **PR #5 – Finalize README and rubric evidence**, submitted by Akshitha Sainath Sanagarapu.
 
 The review covered:
 
@@ -523,7 +537,7 @@ The review covered:
 
 Review evidence:
 
-https://github.com/MouniSri039/Digital_Pet/pull/FINAL_PR_NUMBER
+https://github.com/MouniSri039/Digital_Pet/pull/5
 
 ---
 
